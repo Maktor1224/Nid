@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nid – l’appli du foyer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2B7A74">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nid">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#EEF3F4;--surface:#fff;--ink:#1B2830;--mute:#62727C;--line:#D9E2E5;--accent:#2B7A74;--onacc:#fff;--warm:#E39A2D;--soft:#DDEBEA;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#10171B;--surface:#192228;--ink:#E6EEF0;--mute:#8FA1AA;--line:#2A363D;--accent:#5CC2B8;--onacc:#0C1517;--warm:#F0B054;--soft:#1F3330}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#10171B;--surface:#192228;--ink:#E6EEF0;--mute:#8FA1AA;--line:#2A363D;--accent:#5CC2B8;--onacc:#0C1517;--warm:#F0B054;--soft:#1F3330}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:84px}
+main{max-width:560px;margin:0 auto;padding:20px 16px}
+h1{font-size:26px;font-weight:800;margin:0 0 2px;letter-spacing:-.01em}
+h2{font-size:18px;font-weight:800;margin:26px 0 10px}
+.sub{color:var(--mute);margin:0 0 18px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.status{background:var(--soft);border-radius:18px;padding:16px;margin-bottom:14px}
+.status b{font-weight:800}
+.status p{margin:2px 0}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big button{border:0;border-radius:20px;padding:22px 8px;font-weight:800;font-size:17px;background:var(--surface);box-shadow:inset 0 0 0 2px var(--line);display:flex;flex-direction:column;align-items:center;gap:6px}
+.big button span{font-size:30px}
+.big button:active{transform:scale(.97);background:var(--soft)}
+.big .feed{background:var(--warm);color:#2A1B00;box-shadow:none}
+.row{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:inset 0 0 0 1px var(--line)}
+.row.done .t{text-decoration:line-through;color:var(--mute)}
+.row .t{flex:1}
+.chk{width:26px;height:26px;border-radius:8px;border:2px solid var(--mute);background:none;flex:none;display:grid;place-items:center;font-weight:800;color:var(--onacc)}
+.done .chk{background:var(--accent);border-color:var(--accent)}
+.who{border:0;border-radius:999px;padding:5px 12px;font-size:14px;font-weight:600;background:var(--soft);color:var(--ink)}
+.who.moi{background:var(--accent);color:var(--onacc)}
+.del{border:0;background:none;color:var(--mute);font-size:20px;padding:0 4px}
+.add{display:flex;gap:8px;margin-top:12px}
+.add input{flex:1;min-width:0;font:inherit;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
+.add button,.ghost{border:0;border-radius:12px;padding:12px 16px;font-weight:600;background:var(--accent);color:var(--onacc)}
+.ghost{background:none;color:var(--mute);box-shadow:inset 0 0 0 1px var(--line);margin-top:10px;font-size:14px;padding:8px 12px}
+.time{color:var(--mute);font-size:14px;min-width:46px}
+.prog{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:0 0 14px}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .25s}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;border:0;background:none;padding:10px 4px 12px;font-size:13px;font-weight:600;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button span{font-size:22px}
+nav button[aria-current="true"]{color:var(--accent)}
+.hidden{display:none}
+.empty{color:var(--mute);padding:8px 2px}
+.pri{border:0;border-radius:12px;padding:12px 16px;font-weight:600;background:var(--accent);color:var(--onacc)}
+.qrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.qrow input,.add select,.ein{font:inherit;padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
+.qrow input{width:90px}
+.qrow .ghost{margin-top:0}
+.add select{flex:none}
+.ein{flex:1;min-width:0}
+.sm{display:block;color:var(--mute);font-size:14px}
+.row.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.sel .chk{background:var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav>
+  <button data-tab="bebe"><span>🍼</span>Bébé</button>
+  <button data-tab="maison"><span>🏠</span>Maison</button>
+  <button data-tab="repas"><span>🍽️</span>Repas</button>
+  <button data-tab="demarches"><span>📋</span>Démarches</button>
+</nav>
+<script>
+var KEY='nid-v1';
+var DEFAULT={tab:'bebe',baby:[],
+tasks:[{id:1,text:'Faire les courses',who:'moi',done:false},{id:2,text:'Lancer une lessive',who:'elle',done:false},{id:3,text:'Sortir les poubelles',who:'moi',done:false},{id:4,text:'Préparer les repas de la semaine',who:'elle',done:false}],
+steps:{},todo:null,meals:[],custom:[],shop:{}};
+var S=load();var pend=false,editing=null;
+/* --- Synchronisation (capacité db) : un document par élément, écrit seulement si modifié --- */
+var DB=null,ready=false,sErr=false,nFirst=0,mir={tasks:{},todo:{},custom:{},baby:{},sel:'',shop:''};
+function idOf(x){return String(x.id||('e'+x.ts))}
+function listOf(c){return c==='tasks'?S.tasks:c==='todo'?S.todo:c==='custom'?S.custom:S.baby}
+function fail(e){sErr=true;try{console.error(e)}catch(x){}}
+function sync(){
+  if(!DB||!ready)return;
+  ['tasks','todo','custom','baby'].forEach(function(c){
+    var cur={},m=mir[c];
+    listOf(c).forEach(function(x){cur[idOf(x)]=JSON.stringify(x)});
+    Object.keys(cur).forEach(function(k){if(m[k]!==cur[k]){m[k]=cur[k];DB.doc(c+'/'+k).set(JSON.parse(cur[k])).catch(fail)}});
+    Object.keys(m).forEach(function(k){if(!(k in cur)){delete m[k];DB.doc(c+'/'+k).delete().catch(fail)}});
+  });
+  var s=JSON.stringify(S.meals),h=JSON.stringify(S.shop);
+  if(s!==mir.sel){mir.sel=s;DB.doc('meals/sel').set({ids:S.meals}).catch(fail)}
+  if(h!==mir.shop){mir.shop=h;DB.doc('meals/shop').set({c:S.shop}).catch(fail)}
+}
+function soft(){var a=document.activeElement;if(!pend&&!(a&&a.matches&&a.matches('input,select')))render()}
+function listen(q,fn){var first=true;q.onSnapshot(function(snap){fn(snap);save();if(first){first=false;nFirst++;if(nFirst===6)ready=true}soft()},fail)}
+function subscribe(){
+  function col(c,fn){listen(c==='baby'?DB.collection('baby').orderBy('ts','desc').limit(400):DB.collection(c),function(snap){var arr=[],m={};snap.docs.forEach(function(d){var v=d.data();if(v){arr.push(v);m[d.id]=JSON.stringify(v)}});mir[c]=m;fn(arr)})}
+  var byId=function(a,b){return String(a.id)<String(b.id)?-1:1};
+  col('tasks',function(a){S.tasks=a.sort(function(x,y){return Number(x.id)-Number(y.id)})});
+  col('todo',function(a){S.todo=a.sort(byId)});
+  col('custom',function(a){S.custom=a.sort(byId)});
+  col('baby',function(a){S.baby=a.reverse()});
+  listen(DB.doc('meals/sel'),function(s){var d=s.exists?s.data():null;S.meals=(d&&d.ids)||[];mir.sel=JSON.stringify(S.meals)});
+  listen(DB.doc('meals/shop'),function(s){var d=s.exists?s.data():null;S.shop=(d&&d.c)||{};mir.shop=JSON.stringify(S.shop)});
+}
+function start(){
+  migrate();
+  DB.doc('meta/init').get().then(function(s){
+    if(s.exists)return;
+    var ps=[];
+    ['tasks','todo','custom','baby'].forEach(function(c){listOf(c).forEach(function(x){ps.push(DB.doc(c+'/'+idOf(x)).set(JSON.parse(JSON.stringify(x))))})});
+    ps.push(DB.doc('meals/sel').set({ids:S.meals}));ps.push(DB.doc('meals/shop').set({c:S.shop}));
+    return Promise.all(ps).then(function(){return DB.doc('meta/init').set({done:true})});
+  }).then(subscribe).catch(function(e){fail(e);DB=null;render()});
+}
+if(window.claude&&claude.use)claude.use('db').then(function(db){if(db){DB=db;start()}}).catch(function(){});
+function load(){try{var r=localStorage.getItem(KEY);if(r)return Object.assign({},DEFAULT,JSON.parse(r))}catch(e){}return JSON.parse(JSON.stringify(DEFAULT))}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function hm(ts){var d=new Date(ts);return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+function ago(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return 'à l’instant';if(m<60)return 'il y a '+m+' min';var h=Math.floor(m/60);return 'il y a '+h+' h '+(m%60<10?'0':'')+(m%60)}
+function last(type){for(var i=S.baby.length-1;i>=0;i--)if(S.baby[i].t===type)return S.baby[i];return null}
+function today(){var s=new Date();s.setHours(0,0,0,0);return S.baby.filter(function(e){return e.ts>=s.getTime()})}
+
+var LABEL={biberon:'🍼 Biberon',couche:'💧 Couche',dodo:'😴 Endormi',reveil:'☀️ Réveil'};
+var STEPS=[
+['Avant la naissance',[
+['a1','Reconnaissance anticipée en mairie (si non marié·e·s)'],
+['a2','Choisir un pédiatre ou un médecin pour bébé'],
+['a3','Chercher un mode de garde (crèche, assistante maternelle)'],
+['a4','Prévenir l’employeur pour le congé de naissance'],
+['a5','Préparer la valise de maternité'],
+['a6','Installer le siège auto']]],
+['Après la naissance',[
+['b1','Déclarer la naissance en mairie (sous 5 jours)'],
+['b2','Ajouter bébé à la mutuelle'],
+['b3','Déclarer bébé à la CPAM (carte Vitale)'],
+['b4','Informer la CAF (prime à la naissance, PAJE)'],
+['b5','Examen médical du 8e jour'],
+['b6','Premiers vaccins (vers 2 mois)']]]];
+
+var MEALS=[
+{id:'m1',n:'Pâtes bolognaise',i:['Pâtes','Viande hachée','Tomates concassées','Oignons','Parmesan']},
+{id:'m2',n:'Poulet rôti et pommes de terre',i:['Poulet','Pommes de terre','Ail','Huile d’olive']},
+{id:'m3',n:'Soupe de légumes',i:['Carottes','Poireaux','Pommes de terre','Bouillon de légumes']},
+{id:'m4',n:'Omelette et salade',i:['Œufs','Salade verte','Tomates']},
+{id:'m5',n:'Riz sauté aux légumes',i:['Riz','Courgettes','Carottes','Œufs','Sauce soja']},
+{id:'m6',n:'Saumon et haricots verts',i:['Pavés de saumon','Haricots verts','Citron','Riz']},
+{id:'m7',n:'Gratin de courgettes',i:['Courgettes','Crème fraîche','Gruyère râpé','Œufs']},
+{id:'m8',n:'Quiche lorraine',i:['Pâte brisée','Lardons','Œufs','Crème fraîche']},
+{id:'m9',n:'Croque-monsieur',i:['Pain de mie','Jambon','Gruyère râpé','Beurre']},
+{id:'m10',n:'Lentilles et saucisses',i:['Lentilles','Saucisses','Carottes','Oignons']}];
+function migrate(){if(S.todo)return;S.todo=[];STEPS.forEach(function(g,gi){g[1].forEach(function(s){S.todo.push({id:s[0],g:gi?'apres':'avant',text:s[1],done:!!S.steps[s[0]]})})});save()}
+function allMeals(){return MEALS.concat(S.custom)}
+function viewMeals(){
+  var h='<h1>Repas</h1><p class="sub">Cochez les repas de la semaine : la liste de courses se crée toute seule.</p>';
+  var list=allMeals();
+  list.forEach(function(m){var on=S.meals.indexOf(m.id)>-1;
+    h+='<div class="row'+(on?' sel':'')+'"><button class="chk" data-meal="'+m.id+'" aria-label="Choisir">'+(on?'✓':'')+'</button><span class="t">'+esc(m.n)+'<span class="sm">'+esc(m.i.join(', '))+'</span></span>'+(m.c?'<button class="del" data-delmeal="'+m.id+'" aria-label="Supprimer">×</button>':'')+'</div>'});
+  h+='<h2>Ajouter un repas</h2><div class="add"><input id="mname" placeholder="Nom du repas" maxlength="60" data-enter="addmeal"></div><div class="add"><input id="mings" placeholder="Ingrédients, séparés par des virgules" maxlength="200" data-enter="addmeal"><button data-addmeal="1">Ajouter</button></div>';
+  var items={};
+  S.meals.forEach(function(id){var m=list.filter(function(x){return x.id===id})[0];if(!m)return;m.i.forEach(function(x){var k=x.trim().toLowerCase();if(!items[k])items[k]={n:x.trim(),c:0};items[k].c++})});
+  var keys=Object.keys(items).sort(function(a,b){return a.localeCompare(b,'fr')});
+  h+='<h2>Liste de courses</h2>';
+  if(!keys.length)h+='<p class="empty">Choisissez au moins un repas pour voir la liste.</p>';
+  keys.forEach(function(k){var d=S.shop[k];h+='<div class="row'+(d?' done':'')+'"><button class="chk" data-shop="'+esc(k)+'" aria-label="Dans le panier">'+(d?'✓':'')+'</button><span class="t">'+esc(items[k].n)+(items[k].c>1?'<span class="sm">pour '+items[k].c+' repas</span>':'')+'</span></div>'});
+  if(S.meals.length)h+='<button class="ghost" data-clearmeals="1">Vider la sélection</button>';
+  return h;
+}
+function render(){migrate();setTimeout(function(){var fi=document.getElementById(pend?'qty':'editin');if(fi)fi.focus()},0);
+  var h='';
+  h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps}[S.tab]||viewBaby)();
+  h+='<p class="sub" style="margin-top:28px;font-size:13px">'+(sErr?'⚠️ Erreur de synchronisation, réessayez plus tard':DB?(ready?'🔄 Synchronisé entre vos appareils':'⏳ Connexion…'):'📴 Mode local : données non partagées')+'</p>';
+  document.getElementById('app').innerHTML=h;
+  document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-current',b.dataset.tab===S.tab)});
+}
+function sleepToday(){var s=new Date();s.setHours(0,0,0,0);var m0=s.getTime(),now=Date.now(),tot=0,st=null;
+  S.baby.forEach(function(e){if(e.t==='dodo'){st=e.ts}else if(e.t==='reveil'&&st!==null){tot+=Math.max(0,Math.min(e.ts,now)-Math.max(st,m0));st=null}});
+  if(st!==null)tot+=Math.max(0,now-Math.max(st,m0));return tot}
+function dur(ms){var m=Math.round(ms/60000);return Math.floor(m/60)+' h '+(m%60<10?'0':'')+(m%60)}
+function mlToday(){return today().reduce(function(a,e){return a+(e.t==='biberon'&&e.ml?e.ml:0)},0)}
+function viewBaby(){
+  var f=last('biberon'),c=last('couche'),s=last('dodo'),r=last('reveil');
+  var asleep=s&&(!r||s.ts>r.ts);
+  var td=today();
+  var cnt=function(t){return td.filter(function(e){return e.t===t}).length};
+  var h='<h1>Bébé</h1><p class="sub">Un appui, c’est noté pour vous deux.</p><div class="status">';
+  h+='<p>🍼 Dernier biberon : <b>'+(f?ago(f.ts)+(f.ml?' · '+f.ml+' ml':''):'pas encore noté')+'</b></p>';
+  h+='<p>💧 Dernière couche : <b>'+(c?ago(c.ts):'pas encore notée')+'</b></p>';
+  h+='<p>'+(asleep?'😴 Dort depuis <b>'+ago(s.ts).replace('il y a ','')+'</b>':'☀️ Éveillé'+(r?' depuis <b>'+ago(r.ts).replace('il y a ','')+'</b>':''))+'</p>';
+  h+='<p>😴 Sommeil aujourd’hui : <b>'+dur(sleepToday())+'</b></p>';h+='<p style="color:var(--mute);margin-top:8px">Aujourd’hui : '+cnt('biberon')+' biberon'+(cnt('biberon')>1?'s':'')+' ('+mlToday()+' ml) · '+cnt('couche')+' couche'+(cnt('couche')>1?'s':'')+'</p></div>';
+  if(pend){var dv=f&&f.ml?f.ml:90;h+='<div class="status"><p><b>Quantité du biberon</b></p><div class="qrow">'+[60,90,120,150].map(function(q){return '<button class="ghost" data-q="'+q+'">'+q+'</button>'}).join('')+'<input id="qty" type="number" inputmode="numeric" min="10" max="400" value="'+dv+'" data-enter="savefeed" aria-label="Quantité en ml"><span>ml</span></div><button class="pri" data-savefeed="1">Enregistrer</button> <button class="ghost" data-cancelfeed="1">Annuler</button></div>'}
+  h+='<div class="big"><button class="feed" data-feed="1"><span>🍼</span>Biberon</button><button data-log="couche"><span>💧</span>Couche</button>';
+  h+=asleep?'<button data-log="reveil"><span>☀️</span>Réveil</button>':'<button data-log="dodo"><span>😴</span>Dodo</button>';
+  h+='<button data-undo="1"><span>↩️</span>Annuler le dernier</button></div>';
+  h+='<h2>Journal du jour</h2>';
+  if(!td.length)h+='<p class="empty">Rien pour l’instant. Appuyez sur un bouton pour commencer.</p>';
+  td.slice().reverse().forEach(function(e){h+='<div class="row"><span class="time">'+hm(e.ts)+'</span><span class="t">'+LABEL[e.t]+(e.ml?' · '+e.ml+' ml':'')+'</span></div>'});
+  return h;
+}
+function viewHome(){
+  var h='<h1>Maison</h1><p class="sub">Qui fait quoi, d’un coup d’œil.</p>';
+  var open=S.tasks.filter(function(t){return !t.done}).length;
+  h+='<div class="status"><p><b>'+open+'</b> tâche'+(open>1?'s':'')+' à faire</p></div>';
+  if(!S.tasks.length)h+='<p class="empty">Aucune tâche. Ajoutez la première ci-dessous.</p>';
+  S.tasks.forEach(function(t){
+    h+='<div class="row'+(t.done?' done':'')+'"><button class="chk" data-done="'+t.id+'" aria-label="Terminé">'+(t.done?'✓':'')+'</button><span class="t">'+esc(t.text)+'</span><button class="who '+t.who+'" data-who="'+t.id+'" aria-label="Changer de responsable">'+(t.who==='moi'?'Tom':'Clara')+'</button><button class="del" data-del="'+t.id+'" aria-label="Supprimer">×</button></div>';
+  });
+  h+='<div class="add"><input id="newtask" placeholder="Nouvelle tâche" maxlength="80"><button data-add="1">Ajouter</button></div>';
+  h+='<button class="ghost" data-reset="1">Décocher tout pour la semaine</button>';
+  return h;
+}
+function viewSteps(){
+  var tot=S.todo.length,ok=S.todo.filter(function(x){return x.done}).length;
+  var h='<h1>Démarches</h1><p class="sub">'+ok+' sur '+tot+' faites. Adaptez la liste à votre situation.</p><div class="prog"><i style="width:'+(tot?Math.round(ok/tot*100):0)+'%"></i></div>';
+  [['avant','Avant la naissance'],['apres','Après la naissance']].forEach(function(g){
+    h+='<h2>'+g[1]+'</h2>';
+    S.todo.filter(function(x){return x.g===g[0]}).forEach(function(x){
+      if(editing===x.id)h+='<div class="row"><input class="ein" id="editin" value="'+esc(x.text)+'" maxlength="120" data-enter="saveedit"><button class="pri" data-saveedit="'+x.id+'">OK</button></div>';
+      else h+='<div class="row'+(x.done?' done':'')+'"><button class="chk" data-step="'+x.id+'" aria-label="Fait">'+(x.done?'✓':'')+'</button><span class="t">'+esc(x.text)+'</span><button class="del" data-edit="'+x.id+'" aria-label="Modifier">✏️</button><button class="del" data-delstep="'+x.id+'" aria-label="Supprimer">×</button></div>'});
+  });
+  h+='<h2>Ajouter une démarche</h2><div class="add"><select id="newgrp" aria-label="Moment"><option value="avant">Avant</option><option value="apres">Après</option></select><input id="newstep" placeholder="Nouvelle démarche" maxlength="120" data-enter="addstep"><button data-addstep="1">Ajouter</button></div>';
+  return h;
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;var d=b.dataset;
+  if(d.tab){S.tab=d.tab;pend=false;editing=null}
+  else if(d.feed){pend=true}
+  else if(d.q){document.getElementById('qty').value=d.q;return}
+  else if(d.savefeed){var ml=parseInt(document.getElementById('qty').value,10);if(!(ml>0))return;S.baby.push({t:'biberon',ts:Date.now(),ml:ml});pend=false}
+  else if(d.cancelfeed){pend=false}
+  else if(d.log)S.baby.push({t:d.log,ts:Date.now()});
+  else if(d.undo)S.baby.pop();
+  else if(d.done){S.tasks.forEach(function(t){if(t.id==d.done)t.done=!t.done})}
+  else if(d.who){S.tasks.forEach(function(t){if(t.id==d.who)t.who=t.who==='moi'?'elle':'moi'})}
+  else if(d.del){S.tasks=S.tasks.filter(function(t){return t.id!=d.del})}
+  else if(d.add){var i=document.getElementById('newtask'),v=i.value.trim();if(!v)return;S.tasks.push({id:Date.now(),text:v,who:'moi',done:false})}
+  else if(d.reset){S.tasks.forEach(function(t){t.done=false})}
+  else if(d.step){S.todo.forEach(function(x){if(x.id===d.step)x.done=!x.done})}
+  else if(d.edit){editing=d.edit}
+  else if(d.saveedit){var v1=document.getElementById('editin').value.trim();if(v1)S.todo.forEach(function(x){if(x.id===d.saveedit)x.text=v1});editing=null}
+  else if(d.delstep){S.todo=S.todo.filter(function(x){return x.id!==d.delstep})}
+  else if(d.addstep){var v2=document.getElementById('newstep').value.trim();if(!v2)return;S.todo.push({id:'x'+Date.now(),g:document.getElementById('newgrp').value,text:v2,done:false})}
+  else if(d.meal){var ix=S.meals.indexOf(d.meal);if(ix>-1)S.meals.splice(ix,1);else S.meals.push(d.meal)}
+  else if(d.shop){S.shop[d.shop]=!S.shop[d.shop]}
+  else if(d.addmeal){var mn=document.getElementById('mname').value.trim(),mi=document.getElementById('mings').value.split(',').map(function(x){return x.trim()}).filter(Boolean);if(!mn||!mi.length)return;var mid='c'+Date.now();S.custom.push({id:mid,n:mn,i:mi,c:true});S.meals.push(mid)}
+  else if(d.delmeal){S.custom=S.custom.filter(function(x){return x.id!==d.delmeal});S.meals=S.meals.filter(function(x){return x!==d.delmeal})}
+  else if(d.clearmeals){S.meals=[];S.shop={}}
+  else return;
+  save();sync();render();
+});
+document.addEventListener('keydown',function(e){if(e.key!=='Enter')return;var t=e.target.id==='newtask'?'add':e.target.dataset.enter;if(t){var b=document.querySelector('[data-'+t+']');if(b)b.click()}});
+setInterval(function(){if(S.tab==='bebe'&&!pend&&!document.activeElement.matches('input'))render()},60000);
+render();
+</script>
+<script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})</script>
+</body>
+</html>
