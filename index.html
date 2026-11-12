@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nid – l’appli du foyer</title>
 <link rel="manifest" href="manifest.webmanifest">
+<script src="config.js"></script>
 <meta name="theme-color" content="#2B7A74">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -120,7 +121,50 @@ function start(){
     return Promise.all(ps).then(function(){return DB.doc('meta/init').set({done:true})});
   }).then(subscribe).catch(function(e){fail(e);DB=null;render()});
 }
-if(window.claude&&claude.use)claude.use('db').then(function(db){if(db){DB=db;start()}}).catch(function(){});
+/* --- Firebase (Firestore + connexion anonyme), sans outil de build --- */
+var FBU='https://www.gstatic.com/firebasejs/13.1.0/';
+function getCode(){try{return localStorage.getItem('nid-foyer')||''}catch(e){return ''}}
+function setCode(c){try{if(c)localStorage.setItem('nid-foyer',c);else localStorage.removeItem('nid-foyer')}catch(e){}}
+function cfgOk(){var c=window.NID_CONFIG;return !!(c&&c.apiKey&&c.apiKey.indexOf('REMPLIR')<0)}
+function newCode(){var a=new Uint8Array(20),c='abcdefghjkmnpqrstuvwxyz23456789',r='';crypto.getRandomValues(a);for(var i=0;i<a.length;i++)r+=c[a[i]%c.length];return r}
+function wrap(x){return{exists:x.exists(),data:function(){return x.data()}}}
+function makeDB(fs,db,code){
+  var base='families/'+code+'/';
+  return{
+    doc:function(p){var r=fs.doc(db,base+p);return{
+      set:function(v){return fs.setDoc(r,v)},
+      get:function(){return fs.getDoc(r).then(wrap)},
+      delete:function(){return fs.deleteDoc(r)},
+      onSnapshot:function(cb,err){return fs.onSnapshot(r,function(x){cb(wrap(x))},err)}}},
+    collection:function(c){var cons=[];var o={
+      orderBy:function(f,d){cons.push(fs.orderBy(f,d));return o},
+      limit:function(n){cons.push(fs.limit(n));return o},
+      onSnapshot:function(cb,err){var q=fs.query.apply(null,[fs.collection(db,base+c)].concat(cons));
+        return fs.onSnapshot(q,function(x){cb({docs:x.docs.map(function(d){return{id:d.id,data:function(){return d.data()}}})})},err)}};return o}
+  }
+}
+function initSync(){
+  var code=getCode();if(!code||!cfgOk())return;
+  Promise.all([import(FBU+'firebase-app.js'),import(FBU+'firebase-auth.js'),import(FBU+'firebase-firestore.js')]).then(function(m){
+    var app=m[0].initializeApp(window.NID_CONFIG),au=m[1],fs=m[2];
+    var db=fs.initializeFirestore(app,{localCache:fs.persistentLocalCache({tabManager:fs.persistentMultipleTabManager()})});
+    var a=au.getAuth(app);
+    return a.authStateReady().then(function(){return a.currentUser||au.signInAnonymously(a)}).then(function(){DB=makeDB(fs,db,code);start()});
+  }).catch(function(e){fail(e);render()});
+}
+function viewFoyer(){
+  var code=getCode(),h='<h1>Foyer</h1><p class="sub">Réglages de la synchronisation entre vos téléphones.</p>';
+  if(!cfgOk())return h+'<div class="status"><p>La synchronisation n’est pas encore configurée : il manque les identifiants Firebase dans le fichier config.js.</p></div><button class="ghost" data-tab="bebe">← Retour</button>';
+  if(!code){
+    h+='<div class="status"><p><b>Premier téléphone ?</b> Créez le foyer : vos données actuelles seront envoyées dans la base partagée.</p></div><button class="pri" data-mkfoyer="1">Créer le foyer</button>';
+    h+='<h2>Rejoindre un foyer existant</h2><p class="sub">Collez le code ou le lien reçu de votre partenaire.</p><div class="add"><input id="joincode" placeholder="Code du foyer" data-enter="joinfoyer" autocapitalize="off" autocomplete="off" autocorrect="off"><button data-joinfoyer="1">Rejoindre</button></div>';
+  }else{
+    h+='<div class="status"><p>Foyer connecté.</p><p>Code : <b>'+esc(code)+'</b></p><p class="sub" style="margin:8px 0 6px">Ne le publiez pas : toute personne qui l’a accède à vos données.</p><input class="ein" id="invite" readonly style="width:100%" value="'+esc(location.origin+location.pathname+'#foyer='+code)+'"></div><button class="pri" data-copyinvite="1">Copier le lien</button> <button class="ghost" data-leave="1">Quitter ce foyer</button>';
+  }
+  return h+'<p><button class="ghost" data-tab="bebe">← Retour</button></p>';
+}
+(function(){var m=(location.hash||'').match(/^#foyer=([A-Za-z0-9_-]{16,})$/);if(m){setCode(m[1]);try{history.replaceState(null,'',location.pathname)}catch(e){}}})();
+initSync();
 function load(){try{var r=localStorage.getItem(KEY);if(r)return Object.assign({},DEFAULT,JSON.parse(r))}catch(e){}return JSON.parse(JSON.stringify(DEFAULT))}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -176,8 +220,8 @@ function viewMeals(){
 }
 function render(){migrate();setTimeout(function(){var fi=document.getElementById(pend?'qty':'editin');if(fi)fi.focus()},0);
   var h='';
-  h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps}[S.tab]||viewBaby)();
-  h+='<p class="sub" style="margin-top:28px;font-size:13px">'+(sErr?'⚠️ Erreur de synchronisation, réessayez plus tard':DB?(ready?'🔄 Synchronisé entre vos appareils':'⏳ Connexion…'):'📴 Mode local : données non partagées')+'</p>';
+  h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps,foyer:viewFoyer}[S.tab]||viewBaby)();
+  h+='<button class="ghost" style="margin-top:28px" data-tab="foyer">'+(sErr?'⚠️ Erreur de synchronisation, réessayez plus tard':DB?(ready?'🔄 Synchronisé entre vos appareils':'⏳ Connexion…'):'📴 Mode local : données non partagées')+' · Réglages</button>';
   document.getElementById('app').innerHTML=h;
   document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-current',b.dataset.tab===S.tab)});
 }
@@ -236,6 +280,10 @@ document.addEventListener('click',function(e){
   else if(d.q){document.getElementById('qty').value=d.q;return}
   else if(d.savefeed){var ml=parseInt(document.getElementById('qty').value,10);if(!(ml>0))return;S.baby.push({t:'biberon',ts:Date.now(),ml:ml});pend=false}
   else if(d.cancelfeed){pend=false}
+  else if(d.mkfoyer){save();setCode(newCode());location.reload();return}
+  else if(d.joinfoyer){var jc=document.getElementById('joincode').value.trim().replace(/^.*foyer=/,'');if(jc.length<16)return;save();setCode(jc);location.reload();return}
+  else if(d.copyinvite){var iv=document.getElementById('invite');iv.select();try{navigator.clipboard.writeText(iv.value)}catch(x){}return}
+  else if(d.leave){setCode('');location.reload();return}
   else if(d.log)S.baby.push({t:d.log,ts:Date.now()});
   else if(d.undo)S.baby.pop();
   else if(d.done){S.tasks.forEach(function(t){if(t.id==d.done)t.done=!t.done})}
