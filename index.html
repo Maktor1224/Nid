@@ -66,6 +66,10 @@ nav button[aria-current="true"]{color:var(--accent)}
 .sm{display:block;color:var(--mute);font-size:14px}
 .row.sel{box-shadow:inset 0 0 0 2px var(--accent)}
 .sel .chk{background:var(--accent);border-color:var(--accent)}
+.srow{display:grid;grid-template-columns:44px 1fr 74px;gap:10px;align-items:center;margin:6px 0}
+.sbar{height:12px;border-radius:99px;background:var(--accent)}
+.sbar.w{background:var(--warm)}
+.sv{text-align:right;font-size:14px;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -220,7 +224,7 @@ function viewMeals(){
 }
 function render(){migrate();setTimeout(function(){var fi=document.getElementById(pend?'qty':'editin');if(fi)fi.focus()},0);
   var h='';
-  h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps,foyer:viewFoyer}[S.tab]||viewBaby)();
+  h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps,foyer:viewFoyer,stats:viewStats}[S.tab]||viewBaby)();
   h+='<button class="ghost" style="margin-top:28px" data-tab="foyer">'+(sErr?'⚠️ Erreur de synchronisation, réessayez plus tard':DB?(ready?'🔄 Synchronisé entre vos appareils':'⏳ Connexion…'):'📴 Mode local : données non partagées')+' · Réglages</button>';
   document.getElementById('app').innerHTML=h;
   document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-current',b.dataset.tab===S.tab)});
@@ -244,10 +248,40 @@ function viewBaby(){
   h+='<div class="big"><button class="feed" data-feed="1"><span>🍼</span>Biberon</button><button data-log="couche"><span>💧</span>Couche</button>';
   h+=asleep?'<button data-log="reveil"><span>☀️</span>Réveil</button>':'<button data-log="dodo"><span>😴</span>Dodo</button>';
   h+='<button data-undo="1"><span>↩️</span>Annuler le dernier</button></div>';
-  h+='<h2>Journal du jour</h2>';
+  h+='<button class="ghost" data-tab="stats">📊 Statistiques de la semaine</button><h2>Journal du jour</h2>';
   if(!td.length)h+='<p class="empty">Rien pour l’instant. Appuyez sur un bouton pour commencer.</p>';
   td.slice().reverse().forEach(function(e){h+='<div class="row"><span class="time">'+hm(e.ts)+'</span><span class="t">'+LABEL[e.t]+(e.ml?' · '+e.ml+' ml':'')+'</span></div>'});
   return h;
+}
+function dayStart(n){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-n);return d.getTime()}
+function statsDays(){
+  var iv=[],st=null,out=[];
+  S.baby.forEach(function(e){if(e.t==='dodo')st=e.ts;else if(e.t==='reveil'&&st!==null){iv.push([st,e.ts]);st=null}});
+  if(st!==null)iv.push([st,Date.now()]);
+  for(var n=6;n>=0;n--){
+    var a=dayStart(n),b=dayStart(n-1),sl=0,ev=S.baby.filter(function(e){return e.ts>=a&&e.ts<b});
+    iv.forEach(function(q){sl+=Math.max(0,Math.min(q[1],b)-Math.max(q[0],a))});
+    var fe=ev.filter(function(e){return e.t==='biberon'});
+    out.push({lab:new Date(a).toLocaleDateString('fr-FR',{weekday:'short'}),sl:sl,ml:fe.reduce(function(x,e){return x+(e.ml||0)},0),c:ev.filter(function(e){return e.t==='couche'}).length,has:ev.length>0});
+  }
+  return out;
+}
+function bars(days,key,cls,fmt){
+  var mx=Math.max.apply(null,days.map(function(d){return d[key]}))||1,h='';
+  days.forEach(function(d){h+='<div class="srow"><span>'+d.lab+'</span><div><div class="sbar '+cls+'" style="width:'+Math.max(2,Math.round(d[key]/mx*100))+'%"></div></div><span class="sv">'+fmt(d[key])+'</span></div>'});
+  return h;
+}
+function avg(arr,key){return arr.length?arr.reduce(function(a,d){return a+d[key]},0)/arr.length:0}
+function viewStats(){
+  var days=statsDays(),h='<h1>Statistiques</h1><p class="sub">Les 7 derniers jours. Indicatif, ce n’est pas un avis médical.</p>';
+  if(!days.some(function(d){return d.has}))return h+'<p class="empty">Pas encore de données : notez quelques biberons et siestes.</p><button class="ghost" data-tab="bebe">← Retour</button>';
+  var full=days.slice(0,6).filter(function(d){return d.has});if(!full.length)full=days.filter(function(d){return d.has});
+  var fd=S.baby.filter(function(e){return e.t==='biberon'&&e.ts>=dayStart(6)}),gaps=[];
+  for(var i=1;i<fd.length;i++){var g=fd[i].ts-fd[i-1].ts;if(g<12*36e5)gaps.push(g)}
+  h+='<div class="status"><p>Moyenne par jour : <b>'+dur(avg(full,'sl'))+'</b> de sommeil · <b>'+Math.round(avg(full,'ml'))+' ml</b> de lait · <b>'+Math.round(avg(full,'c'))+'</b> couches</p>';
+  if(gaps.length)h+='<p>Intervalle moyen entre biberons : <b>'+dur(gaps.reduce(function(a,b){return a+b},0)/gaps.length)+'</b></p>';
+  h+='</div><h2>Sommeil</h2>'+bars(days,'sl','',dur)+'<h2>Lait (ml)</h2>'+bars(days,'ml','w',function(v){return v+' ml'})+'<h2>Couches</h2>'+bars(days,'c','',function(v){return v});
+  return h+'<p><button class="ghost" data-tab="bebe">← Retour</button></p>';
 }
 function viewHome(){
   var h='<h1>Maison</h1><p class="sub">Qui fait quoi, d’un coup d’œil.</p>';
