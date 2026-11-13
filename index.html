@@ -79,21 +79,22 @@ nav button[aria-current="true"]{color:var(--accent)}
   <button data-tab="maison"><span>🏠</span>Maison</button>
   <button data-tab="repas"><span>🍽️</span>Repas</button>
   <button data-tab="demarches"><span>📋</span>Démarches</button>
+  <button data-tab="sante"><span>🩺</span>Santé</button>
 </nav>
 <script>
 var KEY='nid-v1';
 var DEFAULT={tab:'bebe',baby:[],
 tasks:[{id:1,text:'Faire les courses',who:'moi',done:false},{id:2,text:'Lancer une lessive',who:'elle',done:false},{id:3,text:'Sortir les poubelles',who:'moi',done:false},{id:4,text:'Préparer les repas de la semaine',who:'elle',done:false}],
-steps:{},todo:null,meals:[],custom:[],shop:{}};
+steps:{},todo:null,meals:[],custom:[],shop:{},appts:[],care:{birth:'2027-05-06',done:{}}};
 var S=load();var pend=false,editing=null;
 /* --- Synchronisation (capacité db) : un document par élément, écrit seulement si modifié --- */
-var DB=null,ready=false,sErr=false,nFirst=0,mir={tasks:{},todo:{},custom:{},baby:{},sel:'',shop:''};
+var DB=null,ready=false,sErr=false,nFirst=0,mir={tasks:{},todo:{},custom:{},baby:{},appts:{},sel:'',shop:'',care:''};
 function idOf(x){return String(x.id||('e'+x.ts))}
-function listOf(c){return c==='tasks'?S.tasks:c==='todo'?S.todo:c==='custom'?S.custom:S.baby}
+function listOf(c){return c==='tasks'?S.tasks:c==='todo'?S.todo:c==='custom'?S.custom:c==='appts'?S.appts:S.baby}
 function fail(e){sErr=true;try{console.error(e)}catch(x){}}
 function sync(){
   if(!DB||!ready)return;
-  ['tasks','todo','custom','baby'].forEach(function(c){
+  ['tasks','todo','custom','baby','appts'].forEach(function(c){
     var cur={},m=mir[c];
     listOf(c).forEach(function(x){cur[idOf(x)]=JSON.stringify(x)});
     Object.keys(cur).forEach(function(k){if(m[k]!==cur[k]){m[k]=cur[k];DB.doc(c+'/'+k).set(JSON.parse(cur[k])).catch(fail)}});
@@ -102,9 +103,10 @@ function sync(){
   var s=JSON.stringify(S.meals),h=JSON.stringify(S.shop);
   if(s!==mir.sel){mir.sel=s;DB.doc('meals/sel').set({ids:S.meals}).catch(fail)}
   if(h!==mir.shop){mir.shop=h;DB.doc('meals/shop').set({c:S.shop}).catch(fail)}
+  var cs=JSON.stringify(S.care);if(cs!==mir.care){mir.care=cs;DB.doc('meta/care').set(JSON.parse(cs)).catch(fail)}
 }
 function soft(){var a=document.activeElement;if(!pend&&!(a&&a.matches&&a.matches('input,select')))render()}
-function listen(q,fn){var first=true;q.onSnapshot(function(snap){fn(snap);save();if(first){first=false;nFirst++;if(nFirst===6)ready=true}soft()},fail)}
+function listen(q,fn){var first=true;q.onSnapshot(function(snap){fn(snap);save();if(first){first=false;nFirst++;if(nFirst===8)ready=true}soft()},fail)}
 function subscribe(){
   function col(c,fn){listen(c==='baby'?DB.collection('baby').orderBy('ts','desc').limit(400):DB.collection(c),function(snap){var arr=[],m={};snap.docs.forEach(function(d){var v=d.data();if(v){arr.push(v);m[d.id]=JSON.stringify(v)}});mir[c]=m;fn(arr)})}
   var byId=function(a,b){return String(a.id)<String(b.id)?-1:1};
@@ -114,13 +116,15 @@ function subscribe(){
   col('baby',function(a){S.baby=a.reverse()});
   listen(DB.doc('meals/sel'),function(s){var d=s.exists?s.data():null;S.meals=(d&&d.ids)||[];mir.sel=JSON.stringify(S.meals)});
   listen(DB.doc('meals/shop'),function(s){var d=s.exists?s.data():null;S.shop=(d&&d.c)||{};mir.shop=JSON.stringify(S.shop)});
+  col('appts',function(a){S.appts=a.sort(byId)});
+  listen(DB.doc('meta/care'),function(s){var d=s.exists?s.data():null;if(d){S.care=d;if(!S.care.done)S.care.done={}}mir.care=JSON.stringify(S.care)});
 }
 function start(){
   migrate();
   DB.doc('meta/init').get().then(function(s){
     if(s.exists)return;
     var ps=[];
-    ['tasks','todo','custom','baby'].forEach(function(c){listOf(c).forEach(function(x){ps.push(DB.doc(c+'/'+idOf(x)).set(JSON.parse(JSON.stringify(x))))})});
+    ['tasks','todo','custom','baby','appts'].forEach(function(c){listOf(c).forEach(function(x){ps.push(DB.doc(c+'/'+idOf(x)).set(JSON.parse(JSON.stringify(x))))})});
     ps.push(DB.doc('meals/sel').set({ids:S.meals}));ps.push(DB.doc('meals/shop').set({c:S.shop}));
     return Promise.all(ps).then(function(){return DB.doc('meta/init').set({done:true})});
   }).then(subscribe).catch(function(e){fail(e);DB=null;render()});
@@ -224,7 +228,7 @@ function viewMeals(){
 }
 function render(){migrate();setTimeout(function(){var fi=document.getElementById(pend?'qty':'editin');if(fi)fi.focus()},0);
   var h='';
-  h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps,foyer:viewFoyer,stats:viewStats}[S.tab]||viewBaby)();
+  h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps,foyer:viewFoyer,stats:viewStats,sante:viewCare}[S.tab]||viewBaby)();
   h+='<button class="ghost" style="margin-top:28px" data-tab="foyer">'+(sErr?'⚠️ Erreur de synchronisation, réessayez plus tard':DB?(ready?'🔄 Synchronisé entre vos appareils':'⏳ Connexion…'):'📴 Mode local : données non partagées')+' · Réglages</button>';
   document.getElementById('app').innerHTML=h;
   document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-current',b.dataset.tab===S.tab)});
@@ -283,6 +287,60 @@ function viewStats(){
   h+='</div><h2>Sommeil</h2>'+bars(days,'sl','',dur)+'<h2>Lait (ml)</h2>'+bars(days,'ml','w',function(v){return v+' ml'})+'<h2>Couches</h2>'+bars(days,'c','',function(v){return v});
   return h+'<p><button class="ghost" data-tab="bebe">← Retour</button></p>';
 }
+var CARE=[
+{id:'e8j',o:{d:8},w:'avant le',k:'e',t:'Examen du 8e jour (1er certificat de santé)'},
+{id:'e2s',o:{d:14},w:'avant le',k:'e',t:'Examen de la 2e semaine'},
+{id:'vrs',o:{d:0},w:'à la naissance, vers le',k:'v',n:'À voir avec la maternité',t:'Protection contre le VRS (bronchiolite) : vaccin de la mère en fin de grossesse ou anticorps donnés à bébé'},
+{id:'e1m',o:{m:1},k:'e',t:'Examen du 1er mois'},
+{id:'v2h',o:{m:2},k:'v',t:'Hexavalent (diphtérie, tétanos, polio, coqueluche, Hib, hépatite B) : 1re dose'},
+{id:'v2p',o:{m:2},k:'v',t:'Pneumocoque : 1re dose'},
+{id:'v2r',o:{m:2},k:'v',reco:1,t:'Rotavirus (vaccin buvable, 2 ou 3 doses à terminer avant 6 mois)'},
+{id:'e2m',o:{m:2},k:'e',t:'Examen du 2e mois'},
+{id:'v3b',o:{m:3},k:'v',t:'Méningocoque B : 1re dose'},
+{id:'e3m',o:{m:3},k:'e',t:'Examen du 3e mois'},
+{id:'v4h',o:{m:4},k:'v',t:'Hexavalent : 2e dose'},
+{id:'v4p',o:{m:4},k:'v',t:'Pneumocoque : 2e dose'},
+{id:'e4m',o:{m:4},k:'e',t:'Examen du 4e mois'},
+{id:'v5b',o:{m:5},k:'v',t:'Méningocoque B : 2e dose'},
+{id:'e5m',o:{m:5},k:'e',t:'Examen du 5e mois'},
+{id:'v6a',o:{m:6},k:'v',t:'Méningocoques ACWY : 1re dose'},
+{id:'e8m',o:{m:8},w:'entre le 8e et le 9e mois, vers le',k:'e',t:'Examen du 9e mois (2e certificat de santé)'},
+{id:'v11h',o:{m:11},k:'v',t:'Hexavalent : rappel'},
+{id:'v11p',o:{m:11},k:'v',t:'Pneumocoque : rappel'},
+{id:'e11m',o:{m:11},k:'e',t:'Examen du 11e mois'},
+{id:'v12b',o:{m:12},k:'v',t:'Méningocoque B : rappel'},
+{id:'v12a',o:{m:12},k:'v',t:'Méningocoques ACWY : rappel'},
+{id:'v12r',o:{m:12},k:'v',t:'ROR (rougeole, oreillons, rubéole) : 1re dose'},
+{id:'e12m',o:{m:12},k:'e',t:'Examen du 12e mois'},
+{id:'v16r',o:{m:16},w:'entre 16 et 18 mois, vers le',k:'v',t:'ROR : 2e dose'},
+{id:'e16m',o:{m:16},w:'entre 16 et 18 mois, vers le',k:'e',t:'Examen du 16e au 18e mois'},
+{id:'e24m',o:{m:24},w:'entre le 23e et le 24e mois, vers le',k:'e',t:'Examen du 24e mois (3e certificat de santé)'}];
+function addOff(b,o){var d=new Date(b+'T12:00:00');if(isNaN(d))d=new Date('2027-05-06T12:00:00');if(o.m){var day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+o.m);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()))}if(o.d)d.setDate(d.getDate()+o.d);return d}
+function fmtD(d){return d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}
+function rel(d){var n=Math.round((d-new Date().setHours(12,0,0,0))/864e5);return n===0?'aujourd’hui':n>0?'dans '+n+' j':'il y a '+(-n)+' j'}
+function ageLab(o){return o.m?o.m+' mois':o.d===0?'Naissance':o.d===8?'Première semaine':'2e semaine'}
+function viewCare(){
+  var b=S.care.birth,dn=S.care.done||{};
+  var h='<h1>Santé</h1><p class="sub">Vaccins, examens obligatoires et rendez-vous.</p>';
+  h+='<p style="margin:0 0 6px"><b>Date de naissance</b> (prévue, à corriger après la naissance)</p><input type="date" id="birth" class="ein" style="width:100%" value="'+esc(b)+'">';
+  var up=[];
+  CARE.forEach(function(c){if(!dn[c.id])up.push({d:addOff(b,c.o),t:(c.k==='e'?'🩺 ':'💉 ')+c.t})});
+  S.appts.forEach(function(a){if(!a.done&&a.date)up.push({d:new Date(a.date+'T12:00:00'),t:'📅 '+a.text})});
+  up.sort(function(x,y){return x.d-y.d});
+  h+='<h2>À venir</h2><div class="status">'+(up.length?up.slice(0,4).map(function(u){return '<p><b>'+fmtD(u.d)+'</b> ('+rel(u.d)+')<span class="sm">'+esc(u.t)+'</span></p>'}).join(''):'<p>Tout est fait. Bravo !</p>')+'</div>';
+  h+='<h2>Rendez-vous</h2>';
+  var ap=S.appts.slice().sort(function(x,y){return (x.date||'9')<(y.date||'9')?-1:1});
+  if(!ap.length)h+='<p class="empty">Aucun rendez-vous. Ajoutez le pédiatre, la PMI, la sage-femme…</p>';
+  ap.forEach(function(a){h+='<div class="row'+(a.done?' done':'')+'"><button class="chk" data-adone="'+esc(a.id)+'" aria-label="Fait">'+(a.done?'✓':'')+'</button><span class="t">'+esc(a.text)+(a.date?'<span class="sm">'+fmtD(new Date(a.date+'T12:00:00'))+'</span>':'')+'</span><button class="del" data-adel="'+esc(a.id)+'" aria-label="Supprimer">×</button></div>'});
+  h+='<div class="add"><input id="atext" placeholder="Ex. Pédiatre, PMI…" maxlength="80" data-enter="addappt"></div><div class="add"><input type="date" id="adate" class="ein"><button data-addappt="1">Ajouter</button></div>';
+  h+='<h2>Calendrier de bébé</h2><p class="sub">Calculé à partir de la date de naissance. Indicatif : le carnet de santé et votre médecin font foi.</p>';
+  var last='';
+  CARE.forEach(function(c){var key=JSON.stringify(c.o);
+    if(key!==last){last=key;var d0=addOff(b,c.o);h+='<h2 style="margin-bottom:2px">'+ageLab(c.o)+'</h2><span class="sm" style="margin-bottom:8px">'+(c.w||'vers le')+' '+fmtD(d0)+' ('+rel(d0)+')</span>'}
+    var d=!!dn[c.id];
+    h+='<div class="row'+(d?' done':'')+'"><button class="chk" data-cdone="'+c.id+'" aria-label="Fait">'+(d?'✓':'')+'</button><span class="t">'+(c.k==='e'?'🩺 ':'💉 ')+c.t+'<span class="sm">'+(c.n||(c.k==='e'?'Examen obligatoire':c.reco?'Recommandé':'Vaccin obligatoire'))+'</span></span></div>'});
+  return h;
+}
 function viewHome(){
   var h='<h1>Maison</h1><p class="sub">Qui fait quoi, d’un coup d’œil.</p>';
   var open=S.tasks.filter(function(t){return !t.done}).length;
@@ -318,6 +376,10 @@ document.addEventListener('click',function(e){
   else if(d.joinfoyer){var jc=document.getElementById('joincode').value.trim().replace(/^.*foyer=/,'');if(jc.length<16)return;save();setCode(jc);location.reload();return}
   else if(d.copyinvite){var iv=document.getElementById('invite');iv.select();try{navigator.clipboard.writeText(iv.value)}catch(x){}return}
   else if(d.leave){setCode('');location.reload();return}
+  else if(d.cdone){S.care.done[d.cdone]=!S.care.done[d.cdone]}
+  else if(d.adone){S.appts.forEach(function(x){if(x.id===d.adone)x.done=!x.done})}
+  else if(d.adel){S.appts=S.appts.filter(function(x){return x.id!==d.adel})}
+  else if(d.addappt){var at=document.getElementById('atext').value.trim();if(!at)return;S.appts.push({id:'r'+Date.now(),text:at,date:document.getElementById('adate').value||'',done:false})}
   else if(d.log)S.baby.push({t:d.log,ts:Date.now()});
   else if(d.undo)S.baby.pop();
   else if(d.done){S.tasks.forEach(function(t){if(t.id==d.done)t.done=!t.done})}
@@ -339,6 +401,7 @@ document.addEventListener('click',function(e){
   save();sync();render();
 });
 document.addEventListener('keydown',function(e){if(e.key!=='Enter')return;var t=e.target.id==='newtask'?'add':e.target.dataset.enter;if(t){var b=document.querySelector('[data-'+t+']');if(b)b.click()}});
+document.addEventListener('change',function(e){if(e.target.id==='birth'&&e.target.value){S.care.birth=e.target.value;save();sync();render()}});
 setInterval(function(){if(S.tab==='bebe'&&!pend&&!document.activeElement.matches('input'))render()},60000);
 render();
 </script>
