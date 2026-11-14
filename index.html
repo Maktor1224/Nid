@@ -340,7 +340,7 @@ function viewBanner(){
   var noon=new Date().setHours(12,0,0,0),birth=new Date((S.care.birth||'2027-05-06')+'T12:00:00'),conc=new Date((S.care.conception||'2026-08-06')+'T12:00:00');
   if(noon>=birth){var a=dayDiff(birth,noon);return '<div class="banner"><b>👶 Bébé a '+(a<84?wd(a):Math.floor(a/30.44)+' mois')+'</b></div>'}
   var sa=dayDiff(conc,noon)+14;if(sa<14)return '';
-  var sg=sa-14,left=dayDiff(noon,birth),tri=sa<14?'1er trimestre':sa<28?'2e trimestre':'3e trimestre';
+  var sg=sa-14,left=dayDiff(noon,birth),sw=Math.floor(sa/7),tri=sw<14?'1er trimestre':sw<28?'2e trimestre':'3e trimestre';
   return '<div class="banner"><div><b>🤰 '+Math.floor(sa/7)+' SA + '+(sa%7)+' j</b> · '+tri+'</div><div class="bs">'+Math.floor(sg/7)+' semaines de grossesse + '+(sg%7)+' j · naissance prévue le '+fmtD(birth)+' (dans '+wd(left)+')</div><div class="bp"><i style="width:'+Math.min(100,Math.round(sa/287*100))+'%"></i></div></div>';
 }
 function ageLab(o){return o.m?o.m+' mois':o.d===0?'Naissance':o.d===8?'Première semaine':'2e semaine'}
