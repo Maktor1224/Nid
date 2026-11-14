@@ -70,6 +70,10 @@ nav button[aria-current="true"]{color:var(--accent)}
 .srow{display:grid;grid-template-columns:44px 1fr 74px;gap:10px;align-items:center;margin:6px 0}
 .sbar{height:12px;border-radius:99px;background:var(--accent)}
 .sbar.w{background:var(--warm)}
+.banner{background:var(--accent);color:var(--onacc);border-radius:16px;padding:12px 14px;margin-bottom:16px}
+.banner .bs{font-size:14px;opacity:.92;margin-top:2px}
+.banner .bp{height:6px;border-radius:99px;background:rgba(0,0,0,.22);margin-top:10px;overflow:hidden}
+.banner .bp i{display:block;height:100%;background:var(--onacc)}
 .sv{text-align:right;font-size:14px;color:var(--mute)}
 :root[data-theme="night"]{color-scheme:dark;--bg:#0A0604;--surface:#140C08;--ink:#D9956A;--mute:#A9724C;--line:#2A1A11;--accent:#C2703F;--onacc:#140A05;--warm:#8F4F1F;--soft:#1A0F0A}
 :root[data-theme="night"] .big .feed{color:#FFE9D2}
@@ -233,6 +237,7 @@ function viewMeals(){
 function render(){migrate();setTimeout(function(){var fi=document.getElementById(pend?'qty':'editin');if(fi)fi.focus()},0);
   var h='';
   h=({bebe:viewBaby,maison:viewHome,repas:viewMeals,demarches:viewSteps,foyer:viewFoyer,stats:viewStats,sante:viewCare}[S.tab]||viewBaby)();
+  if(['bebe','maison','repas','demarches','sante'].indexOf(S.tab)>-1)h=viewBanner()+h;
   h+='<button class="ghost" style="margin-top:28px" data-tab="foyer">'+(sErr?'⚠️ Erreur de synchronisation, réessayez plus tard':DB?(ready?'🔄 Synchronisé entre vos appareils':'⏳ Connexion…'):'📴 Mode local : données non partagées')+' · Réglages</button>';
   document.getElementById('app').innerHTML=h;
   document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-current',b.dataset.tab===S.tab)});
@@ -328,21 +333,31 @@ var CARE=[
 function addOff(b,o){var d=new Date(b+'T12:00:00');if(isNaN(d))d=new Date('2027-05-06T12:00:00');if(o.m){var day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+o.m);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()))}if(o.d)d.setDate(d.getDate()+o.d);return d}
 function fmtD(d){return d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}
 function rel(d){var n=Math.round((d-new Date().setHours(12,0,0,0))/864e5);return n===0?'aujourd’hui':n>0?'dans '+n+' j':'il y a '+(-n)+' j'}
+function ymd(d){var p=function(n){return (n<10?'0':'')+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
+function dayDiff(a,b){return Math.round((b-a)/864e5)}
+function wd(n){return Math.floor(n/7)+' sem. '+(n%7)+' j'}
+function viewBanner(){
+  var noon=new Date().setHours(12,0,0,0),birth=new Date((S.care.birth||'2027-05-06')+'T12:00:00'),conc=new Date((S.care.conception||'2026-08-06')+'T12:00:00');
+  if(noon>=birth){var a=dayDiff(birth,noon);return '<div class="banner"><b>👶 Bébé a '+(a<84?wd(a):Math.floor(a/30.44)+' mois')+'</b></div>'}
+  var sa=dayDiff(conc,noon)+14;if(sa<14)return '';
+  var sg=sa-14,left=dayDiff(noon,birth),tri=sa<14?'1er trimestre':sa<28?'2e trimestre':'3e trimestre';
+  return '<div class="banner"><div><b>🤰 '+Math.floor(sa/7)+' SA + '+(sa%7)+' j</b> · '+tri+'</div><div class="bs">'+Math.floor(sg/7)+' semaines de grossesse + '+(sg%7)+' j · naissance prévue le '+fmtD(birth)+' (dans '+wd(left)+')</div><div class="bp"><i style="width:'+Math.min(100,Math.round(sa/287*100))+'%"></i></div></div>';
+}
 function ageLab(o){return o.m?o.m+' mois':o.d===0?'Naissance':o.d===8?'Première semaine':'2e semaine'}
 function viewCare(){
   var b=S.care.birth,dn=S.care.done||{};
   var h='<h1>Santé</h1><p class="sub">Vaccins, examens obligatoires et rendez-vous.</p>';
-  h+='<p style="margin:0 0 6px"><b>Date de naissance</b> (prévue, à corriger après la naissance)</p><input type="date" id="birth" class="ein" style="width:100%" value="'+esc(b)+'">';
+  h+='<p style="margin:0 0 6px"><b>Date de conception</b></p><input type="date" id="conc" class="ein" style="width:100%" value="'+esc(S.care.conception||'2026-08-06')+'"><p style="margin:12px 0 6px"><b>Date de naissance</b> (prévue, à corriger après la naissance)</p><input type="date" id="birth" class="ein" style="width:100%" value="'+esc(b)+'"><span class="sm" style="margin-top:6px">Changer la conception recalcule la naissance prévue (9 mois plus tard) tant que bébé n’est pas né.</span>';
   var up=[];
   CARE.forEach(function(c){if(!dn[c.id])up.push({d:addOff(b,c.o),t:(c.k==='e'?'🩺 ':'💉 ')+c.t})});
-  S.appts.forEach(function(a){if(!a.done&&a.date)up.push({d:new Date(a.date+'T12:00:00'),t:'📅 '+a.text})});
+  S.appts.forEach(function(a){if(!a.done&&a.date)up.push({d:new Date(a.date+'T'+(a.time||'12:00')+':00'),t:'📅 '+(a.time?a.time.replace(':',' h ')+' · ':'')+a.text})});
   up.sort(function(x,y){return x.d-y.d});
   h+='<h2>À venir</h2><div class="status">'+(up.length?up.slice(0,4).map(function(u){return '<p><b>'+fmtD(u.d)+'</b> ('+rel(u.d)+')<span class="sm">'+esc(u.t)+'</span></p>'}).join(''):'<p>Tout est fait. Bravo !</p>')+'</div>';
   h+='<h2>Rendez-vous</h2>';
-  var ap=S.appts.slice().sort(function(x,y){return (x.date||'9')<(y.date||'9')?-1:1});
+  var ap=S.appts.slice().sort(function(x,y){return ((x.date||'9')+(x.time||''))<((y.date||'9')+(y.time||''))?-1:1});
   if(!ap.length)h+='<p class="empty">Aucun rendez-vous. Ajoutez le pédiatre, la PMI, la sage-femme…</p>';
-  ap.forEach(function(a){h+='<div class="row'+(a.done?' done':'')+'"><button class="chk" data-adone="'+esc(a.id)+'" aria-label="Fait">'+(a.done?'✓':'')+'</button><span class="t">'+esc(a.text)+(a.date?'<span class="sm">'+fmtD(new Date(a.date+'T12:00:00'))+'</span>':'')+'</span><button class="del" data-adel="'+esc(a.id)+'" aria-label="Supprimer">×</button></div>'});
-  h+='<div class="add"><input id="atext" placeholder="Ex. Pédiatre, PMI…" maxlength="80" data-enter="addappt"></div><div class="add"><input type="date" id="adate" class="ein"><button data-addappt="1">Ajouter</button></div>';
+  ap.forEach(function(a){h+='<div class="row'+(a.done?' done':'')+'"><button class="chk" data-adone="'+esc(a.id)+'" aria-label="Fait">'+(a.done?'✓':'')+'</button><span class="t">'+esc(a.text)+(a.date?'<span class="sm">'+fmtD(new Date(a.date+'T12:00:00'))+(a.time?' à '+a.time.replace(':',' h '):'')+'</span>':'')+'</span><button class="del" data-adel="'+esc(a.id)+'" aria-label="Supprimer">×</button></div>'});
+  h+='<div class="add"><input id="atext" placeholder="Ex. Pédiatre, PMI…" maxlength="80" data-enter="addappt"></div><div class="add"><input type="date" id="adate" class="ein" aria-label="Date"><input type="time" id="atime" class="ein" aria-label="Heure"></div><div class="add"><button data-addappt="1" style="flex:1">Ajouter le rendez-vous</button></div>';
   h+='<h2>Calendrier de bébé</h2><p class="sub">Calculé à partir de la date de naissance. Indicatif : le carnet de santé et votre médecin font foi.</p>';
   var last='';
   CARE.forEach(function(c){var key=JSON.stringify(c.o);
@@ -390,7 +405,7 @@ document.addEventListener('click',function(e){
   else if(d.cdone){S.care.done[d.cdone]=!S.care.done[d.cdone]}
   else if(d.adone){S.appts.forEach(function(x){if(x.id===d.adone)x.done=!x.done})}
   else if(d.adel){S.appts=S.appts.filter(function(x){return x.id!==d.adel})}
-  else if(d.addappt){var at=document.getElementById('atext').value.trim();if(!at)return;S.appts.push({id:'r'+Date.now(),text:at,date:document.getElementById('adate').value||'',done:false})}
+  else if(d.addappt){var at=document.getElementById('atext').value.trim();if(!at)return;S.appts.push({id:'r'+Date.now(),text:at,date:document.getElementById('adate').value||'',time:document.getElementById('atime').value||'',done:false})}
   else if(d.log)S.baby.push({t:d.log,ts:Date.now()});
   else if(d.undo)S.baby.pop();
   else if(d.done){S.tasks.forEach(function(t){if(t.id==d.done)t.done=!t.done})}
@@ -412,7 +427,10 @@ document.addEventListener('click',function(e){
   save();sync();render();
 });
 document.addEventListener('keydown',function(e){if(e.key!=='Enter')return;var t=e.target.id==='newtask'?'add':e.target.dataset.enter;if(t){var b=document.querySelector('[data-'+t+']');if(b)b.click()}});
-document.addEventListener('change',function(e){if(e.target.id==='birth'&&e.target.value){S.care.birth=e.target.value;save();sync();render()}});
+document.addEventListener('change',function(e){var v=e.target.value;if(!v)return;
+  if(e.target.id==='birth'){S.care.birth=v;save();sync();render()}
+  else if(e.target.id==='conc'){var enc=new Date()<new Date(S.care.birth+'T12:00:00');S.care.conception=v;if(enc)S.care.birth=ymd(addOff(v,{m:9}));save();sync();render()}
+});
 applyNight();
 setInterval(function(){applyNight();if(S.tab==='bebe'&&!pend&&!document.activeElement.matches('input'))render()},60000);
 render();
