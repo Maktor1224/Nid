@@ -6,6 +6,7 @@
 <title>Nid – l’appli du foyer</title>
 <link rel="manifest" href="manifest.webmanifest">
 <script src="config.js"></script>
+<script>(function(){try{var m=localStorage.getItem('nid-night'),h=new Date().getHours();if(m==='on'||(m==='auto'&&(h>=22||h<7)))document.documentElement.setAttribute('data-theme','night')}catch(e){}})()</script>
 <meta name="theme-color" content="#2B7A74">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -70,6 +71,9 @@ nav button[aria-current="true"]{color:var(--accent)}
 .sbar{height:12px;border-radius:99px;background:var(--accent)}
 .sbar.w{background:var(--warm)}
 .sv{text-align:right;font-size:14px;color:var(--mute)}
+:root[data-theme="night"]{color-scheme:dark;--bg:#0A0604;--surface:#140C08;--ink:#D9956A;--mute:#A9724C;--line:#2A1A11;--accent:#C2703F;--onacc:#140A05;--warm:#8F4F1F;--soft:#1A0F0A}
+:root[data-theme="night"] .big .feed{color:#FFE9D2}
+:root[data-theme="night"] .big button{padding:30px 8px}
 </style>
 </head>
 <body>
@@ -243,7 +247,7 @@ function viewBaby(){
   var asleep=s&&(!r||s.ts>r.ts);
   var td=today();
   var cnt=function(t){return td.filter(function(e){return e.t===t}).length};
-  var h='<h1>Bébé</h1><p class="sub">Un appui, c’est noté pour vous deux.</p><div class="status">';
+  var h='<h1>Bébé</h1><p class="sub">Un appui, c’est noté pour vous deux.</p><button class="ghost" style="margin:0 0 12px" data-night="1">🌙 Mode nuit : '+nightLabel()+'</button><div class="status">';
   h+='<p>🍼 Dernier biberon : <b>'+(f?ago(f.ts)+(f.ml?' · '+f.ml+' ml':''):'pas encore noté')+'</b></p>';
   h+='<p>💧 Dernière couche : <b>'+(c?ago(c.ts):'pas encore notée')+'</b></p>';
   h+='<p>'+(asleep?'😴 Dort depuis <b>'+ago(s.ts).replace('il y a ','')+'</b>':'☀️ Éveillé'+(r?' depuis <b>'+ago(r.ts).replace('il y a ','')+'</b>':''))+'</p>';
@@ -257,6 +261,12 @@ function viewBaby(){
   td.slice().reverse().forEach(function(e){h+='<div class="row"><span class="time">'+hm(e.ts)+'</span><span class="t">'+LABEL[e.t]+(e.ml?' · '+e.ml+' ml':'')+'</span></div>'});
   return h;
 }
+function nightMode(){try{return localStorage.getItem('nid-night')||'off'}catch(e){return 'off'}}
+function nightLabel(){return {off:'désactivé',on:'activé',auto:'auto, de 22 h à 7 h'}[nightMode()]}
+function cycleNight(){var n={off:'on',on:'auto',auto:'off'}[nightMode()];try{localStorage.setItem('nid-night',n)}catch(e){}applyNight()}
+function applyNight(){var m=nightMode(),h=new Date().getHours(),on=m==='on'||(m==='auto'&&(h>=22||h<7)),r=document.documentElement;
+  if(on)r.setAttribute('data-theme','night');else if(r.getAttribute('data-theme')==='night')r.removeAttribute('data-theme');
+  var t=document.querySelector('meta[name="theme-color"]');if(t)t.setAttribute('content',on?'#0A0604':'#2B7A74')}
 function dayStart(n){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-n);return d.getTime()}
 function statsDays(){
   var iv=[],st=null,out=[];
@@ -376,6 +386,7 @@ document.addEventListener('click',function(e){
   else if(d.joinfoyer){var jc=document.getElementById('joincode').value.trim().replace(/^.*foyer=/,'');if(jc.length<16)return;save();setCode(jc);location.reload();return}
   else if(d.copyinvite){var iv=document.getElementById('invite');iv.select();try{navigator.clipboard.writeText(iv.value)}catch(x){}return}
   else if(d.leave){setCode('');location.reload();return}
+  else if(d.night){cycleNight()}
   else if(d.cdone){S.care.done[d.cdone]=!S.care.done[d.cdone]}
   else if(d.adone){S.appts.forEach(function(x){if(x.id===d.adone)x.done=!x.done})}
   else if(d.adel){S.appts=S.appts.filter(function(x){return x.id!==d.adel})}
@@ -402,7 +413,8 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('keydown',function(e){if(e.key!=='Enter')return;var t=e.target.id==='newtask'?'add':e.target.dataset.enter;if(t){var b=document.querySelector('[data-'+t+']');if(b)b.click()}});
 document.addEventListener('change',function(e){if(e.target.id==='birth'&&e.target.value){S.care.birth=e.target.value;save();sync();render()}});
-setInterval(function(){if(S.tab==='bebe'&&!pend&&!document.activeElement.matches('input'))render()},60000);
+applyNight();
+setInterval(function(){applyNight();if(S.tab==='bebe'&&!pend&&!document.activeElement.matches('input'))render()},60000);
 render();
 </script>
 <script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})</script>
